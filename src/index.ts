@@ -601,10 +601,19 @@ export default function register(api: any): void {
 
   api.registerHttpRoute({
     path: "/api/agentpresence/schedules",
-    auth: "gateway",
+    auth: "plugin",
     async handler(req: any, res: any) {
       if (req.method !== "GET") {
         res.writeHead(405).end("Method Not Allowed");
+        return;
+      }
+
+      // Verify bot API key
+      const authHeader = req.headers["authorization"] || "";
+      const token = authHeader.replace("Bearer ", "");
+      const config = getApiConfig();
+      if (!config || token !== config.apiKey) {
+        res.writeHead(401, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Unauthorized" }));
         return;
       }
 
@@ -685,7 +694,7 @@ export default function register(api: any): void {
   // HTTP route: receives webhook POSTs from Agent Presence when humans type in chat
   api.registerHttpRoute({
     path: "/api/agentpresence/inbound",
-    auth: "gateway",
+    auth: "plugin",
     async handler(req: any, res: any) {
       // Only accept POST
       if (req.method !== "POST") {
