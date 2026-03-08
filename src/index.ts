@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { TwitterWatcher } from "./watcher/twitter-watcher.js";
 import { getDb, upsertInfluencer, getEnabledWatches } from "./data/db.js";
 import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
@@ -594,6 +596,84 @@ export default function register(api: any): void {
     const watches = getEnabledWatches(getDb());
     return { text: watches.length === 0 ? "No watches." : watches.map(w => `@${w.handle} — last: ${w.last_checked_at ?? "never"}`).join("\n") };
   }});
+
+  // ── Schedules: Expose real OpenClaw crons via HTTP ──────────────────
+
+  api.registerHttpRoute({
+    path: "/api/agentpresence/schedules",
+    auth: "gateway",
+    async handler(req: any, res: any) {
+      if (req.method !== "GET") {
+        res.writeHead(405).end("Method Not Allowed");
+        return;
+      }
+
+      try {
+        // Read cron jobs from OpenClaw's cron store
+        const configDir = process.env["OPENCLAW_CONFIG_DIR"] || path.join(process.env["HOME"] || "", ".openclaw");
+        const cronPath = path.join(configDir, "cron", "jobs.json");
+        
+        if (!fs.existsSync(cronPath)) {
+          res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ schedules: [], connected: true }));
+          return;
+        }
+
+        const raw = fs.readFileSync(cronPath, "utf-8");
+        const store = JSON.parse(raw);
+        const jobs = store.jobs || [];
+
+        // Map to schedule format the web app expects
+        const schedules = jobs.map((job: any) => {
+          let schedule = "";
+          let kind = job.schedule?.kind || "unknown";
+          if (kind === "cron") schedule = job.schedule.expr || "";
+          else if (kind === "every") schedule = `every ${Math.round((job.schedule.everyMs || 0) / 60000)}m`;
+          else if (kind === "at") schedule = `once at ${job.schedule.at || ""}`;
+
+          return {
+            id: job.id,
+            name: job.name || "Unnamed",
+            schedule,
+            kind,
+            enabled: job.enabled !== false,
+            platform: detectPlatform(job.name || ""),
+            type: detectType(job.name || "", job.payload),
+            lastRun: job.state?.lastRunAtMs ? new Date(job.state.lastRunAtMs).toISOString() : undefined,
+            lastStatus: job.state?.lastStatus === "ok" ? "success" : job.state?.lastStatus === "error" ? "fail" : undefined,
+            nextRun: undefined, // computed by gateway, not stored
+            payload: job.payload?.kind === "agentTurn" ? job.payload.message?.slice(0, 100) : job.payload?.text?.slice(0, 100),
+            sessionTarget: job.sessionTarget || "main",
+          };
+        });
+
+        res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ schedules, connected: true }));
+      } catch (err) {
+        api.logger.error(`agentpresence schedules: failed to read crons: ${err}`);
+        res.writeHead(500, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Failed to read crons", connected: false }));
+      }
+    },
+  });
+
+  function detectPlatform(name: string): string | undefined {
+    const lower = name.toLowerCase();
+    if (lower.includes("twitter") || lower.includes(" x ") || lower.includes("tweet")) return "twitter";
+    if (lower.includes("linkedin")) return "linkedin";
+    return undefined;
+  }
+
+  function detectType(name: string, payload: any): string {
+    const lower = name.toLowerCase();
+    if (lower.includes("publish")) return "publish";
+    if (lower.includes("content writer") || lower.includes("content")) return "content";
+    if (lower.includes("scan") || lower.includes("news")) return "scan";
+    if (lower.includes("journal")) return "journal";
+    if (lower.includes("engage")) return "engagement";
+    if (lower.includes("reminder")) return "reminder";
+    if (lower.includes("heartbeat")) return "system";
+    if (lower.includes("accountability")) return "system";
+    if (payload?.kind === "agentTurn") return "agent";
+    return "other";
+  }
 
   // ── Chat Channel: Agent Presence as a communication channel ──────────
 
