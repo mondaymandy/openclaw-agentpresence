@@ -247,3 +247,27 @@ export function checkGuardrails(text: string, guardrails: Guardrail[]): Guardrai
 
   return violations;
 }
+
+// ── Audit Logging ──────────────────────────────────────────────────────
+export interface AuditEventParams {
+  category: 'content' | 'engagement' | 'inbound' | 'pipeline' | 'cron' | 'chat' | 'account' | 'system';
+  eventType: string;
+  platform?: string;
+  title: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  itemId?: string;
+  itemType?: string;
+  severity?: 'info' | 'warning' | 'error' | 'success';
+}
+
+export async function logAuditEvent(params: AuditEventParams): Promise<void> {
+  try {
+    await apiFetch("/audit", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  } catch {
+    // Audit logging should never break the main flow
+  }
+}

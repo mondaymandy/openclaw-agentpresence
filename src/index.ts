@@ -1,6 +1,6 @@
 import { TwitterWatcher } from "./watcher/twitter-watcher.js";
 import { getDb, upsertInfluencer, getEnabledWatches } from "./data/db.js";
-import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails } from "./data/api-client.js";
+import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
 import { MondayBoardClient } from "./services/monday-board.js";
 import { canAct, recordAction, getActionCount } from "./utils/rate-limiter.js";
 
@@ -104,6 +104,7 @@ export default function register(api: any): void {
           const _gb = _gv.filter((v: any) => v.guardrail.severity === "block");
           if (_gb.length > 0) {
             const msg = "🛑 POST BLOCKED by guardrails:\n" + _gb.map((v: any) => "- " + v.guardrail.name + ": matched \"" + v.match + "\"").join("\n") + "\n\nThe post was NOT logged.";
+            logAuditEvent({ category: 'content', eventType: 'post_blocked', platform: params.platform, title: `Post blocked by guardrails: ${_gb.map((v: any) => v.guardrail.name).join(', ')}`, description: params.content.slice(0, 200), severity: 'warning' });
             return { content: [{ type: "text", text: msg }] };
           }
           apiResult = await apiLogPost({
@@ -128,6 +129,18 @@ export default function register(api: any): void {
 
       recordAction(params.platform);
       
+      // Audit: post logged
+      logAuditEvent({
+        category: 'content',
+        eventType: 'post_published',
+        platform: params.platform,
+        title: `Published ${params.type}: "${params.content.slice(0, 80)}"`,
+        metadata: { url: params.url },
+        itemId: apiResult?.id,
+        itemType: 'post',
+        severity: 'success',
+      });
+
       return {
         content: [{ type: "text", text: `Post logged${apiResult ? ` (API id: ${apiResult.id})` : " (local only)"}` }],
       };
@@ -185,6 +198,18 @@ export default function register(api: any): void {
       } catch { /* local DB optional */ }
 
       recordAction(params.platform);
+
+      // Audit: engagement logged
+      logAuditEvent({
+        category: 'engagement',
+        eventType: 'reply_sent',
+        platform: params.platform,
+        title: `Reply to @${params.target_handle}: "${params.content.slice(0, 80)}"`,
+        metadata: { targetUrl: params.url, targetHandle: params.target_handle },
+        itemId: apiResult?.id,
+        itemType: 'engagement',
+        severity: 'info',
+      });
 
       return {
         content: [{ type: "text", text: `Engagement logged${apiResult ? ` (API id: ${apiResult.id})` : " (local only)"}` }],
@@ -401,6 +426,15 @@ export default function register(api: any): void {
           scheduledFor: params.scheduledFor,
         });
         const dt = new Date(params.scheduledFor);
+        logAuditEvent({
+          category: 'content',
+          eventType: 'post_scheduled',
+          platform: params.platform,
+          title: `Scheduled ${params.type}: "${params.content.slice(0, 80)}" for ${dt.toISOString()}`,
+          itemId: result.id,
+          itemType: 'post',
+          severity: 'info',
+        });
         return { content: [{ type: "text", text: `Post queued (id: ${result.id}). Will publish at ${dt.toLocaleString("en-US", { timeZone: "America/New_York" })} ET on ${params.platform}.` }] };
       } catch (err) {
         return { content: [{ type: "text", text: `Failed to queue post: ${err}` }] };
@@ -426,6 +460,16 @@ export default function register(api: any): void {
       
       if (params.markPublished) {
         const result = await markPostPublished(params.markPublished, params.url);
+        logAuditEvent({
+          category: 'content',
+          eventType: 'post_published',
+          platform: result.platform,
+          title: `Published scheduled post: "${(result.text || '').slice(0, 80)}"`,
+          metadata: { url: params.url },
+          itemId: result.id,
+          itemType: 'post',
+          severity: 'success',
+        });
         return { content: [{ type: "text", text: `Post ${result.id} marked as published.` }] };
       }
 
@@ -472,6 +516,14 @@ export default function register(api: any): void {
         return { content: [{ type: "text", text: "API not configured. Set SOCIAL_APP_URL, SOCIAL_APP_KEY, SOCIAL_ACCOUNT_ID." }] };
       }
       const entry = await writeJournalEntry({ type: params.type, date: params.date, content: params.content });
+      logAuditEvent({
+        category: 'pipeline',
+        eventType: 'journal_written',
+        title: `Journal entry: ${params.type} for ${params.date}`,
+        itemId: entry.id,
+        itemType: 'journal',
+        severity: 'info',
+      });
       return { content: [{ type: "text", text: `Journal entry saved (id: ${entry.id}, type: ${entry.type}, date: ${entry.date}).` }] };
     },
   });
@@ -553,6 +605,7 @@ export default function register(api: any): void {
   // HTTP route: receives webhook POSTs from Agent Presence when humans type in chat
   api.registerHttpRoute({
     path: "/api/agentpresence/inbound",
+    auth: "gateway",
     async handler(req: any, res: any) {
       // Only accept POST
       if (req.method !== "POST") {
@@ -624,6 +677,7 @@ export default function register(api: any): void {
         await chatRegisterWebhook(webhookUrl, chatWebhookSecret);
         chatWebhookRegistered = true;
         api.logger.info(`agentpresence chat: webhook registered at ${webhookUrl}`);
+        logAuditEvent({ category: 'system', eventType: 'plugin_connected', title: 'Agent Presence plugin connected and webhook registered', metadata: { webhookUrl }, severity: 'success' });
 
         // Send welcome message
         await chatPostMessage(
@@ -633,23 +687,26 @@ export default function register(api: any): void {
         api.logger.info("agentpresence chat: welcome message sent");
       } catch (err) {
         api.logger.error(`agentpresence chat: failed to register webhook: ${err}`);
+        logAuditEvent({ category: 'system', eventType: 'plugin_connection_failed', title: `Failed to register webhook: ${err}`, severity: 'error' });
       }
     },
     async stop() {
       chatWebhookRegistered = false;
+      logAuditEvent({ category: 'system', eventType: 'plugin_disconnected', title: 'Agent Presence plugin disconnected', severity: 'warning' });
     },
   });
 
   // Hook: when the agent sends a message in response to a chat message, post it back
   api.registerHook("message_sending", async (ctx: any) => {
+    api.logger.info(`agentpresence chat hook: source=${ctx.source}, inboundSource=${ctx.inboundSource}, lastInboundSource=${ctx.lastInboundSource}, hasText=${!!ctx.text}, keys=${Object.keys(ctx).join(',')}`);
+
     // Only intercept if the message originated from agentpresence chat
     if (!chatWebhookRegistered || !getApiConfig()) return;
 
     // Check if this is a response to an Agent Presence chat message
-    const sessionKey = ctx.sessionKey ?? ctx.session?.key;
     const sourceMatch = ctx.source === "agentpresence-chat"
       || ctx.inboundSource === "agentpresence-chat"
-      || (ctx.text && ctx.lastInboundSource === "agentpresence-chat");
+      || ctx.lastInboundSource === "agentpresence-chat";
 
     if (!sourceMatch) return;
 
@@ -662,6 +719,6 @@ export default function register(api: any): void {
     } catch (err) {
       api.logger.error(`agentpresence chat: failed to post response: ${err}`);
     }
-  });
+  }, { name: "agentpresence-chat-relay" });
 
 }
