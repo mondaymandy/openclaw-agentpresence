@@ -84,6 +84,14 @@ export async function fetchCorpus(): Promise<any[]> {
   return apiFetch("/corpus");
 }
 
+export async function writeCorpus(entry: {
+  filename: string;
+  title: string;
+  content: string;
+}): Promise<any> {
+  return apiFetch("/corpus", { method: "POST", body: JSON.stringify(entry) });
+}
+
 export async function fetchStrategy(): Promise<any[]> {
   return apiFetch("/strategy");
 }

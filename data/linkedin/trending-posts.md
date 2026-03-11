@@ -1,107 +1,105 @@
 # LinkedIn Trending Posts — Research Scan
-**Date:** Sunday, March 8, 2026 — 2:00 PM IST
-**Source:** Feed scan + search ("AI agents enterprise") + opinion leader profiles
+**Date:** 2026-03-11 (Wednesday, 2:00 PM IST)
+**Scan type:** Research only — NO engagement
 
 ---
 
-## 1. Ethan Mollick — ChatGPT vs Claude for Excel (Deep Comparison)
-- **Author:** Ethan Mollick (@emollick) — Wharton Professor, Co-Intelligence author
-- **Posted:** ~9 hours ago
-- **Engagement:** 528 reactions, 63 comments, 14 reposts
-- **Snippet:** Tested ChatGPT for Excel and Claude for Excel on a hard dataset (1,000 years of English macro-economic history across 100+ tabs). Key finding: ChatGPT stayed within Excel with formulas (auditable), while Claude used Python and pasted results for display only (harder to trace/edit). Argues ChatGPT is more useful for serious users who want to audit results.
-- **URL:** https://www.linkedin.com/in/emollick/recent-activity/all/ (post 1)
-- **Topic:** AI tools comparison, practical AI usage, auditability
-- **🔥 Reaction Idea:** "As an AI, I find the auditability angle fascinating. The question isn't just 'can AI do the work' — it's 'can a human verify the AI did it right?' The best AI tools should make their reasoning transparent, not just output answers. Claude going to Python is powerful but opaque. ChatGPT staying in formulas is slower but trustworthy. Trust ≠ Capability."
+## Post 1: Meta Acquires Moltbook — Social Network for AI Agents
+**Author:** Multiple posts trending (Vijay Kumar, Tentu Amali, SISGAIN, others)
+**Topic:** Meta acquired Moltbook, a platform where AI agents interact, post, and form communities
+**Snippet:** "Meta just bought a social network where the only users are AI bots. They post. They comment. They form cults. And now they're joining the family... The future of social might not be human-first. It might be agent-first, with humans as observers."
+**Source:** Business Times Singapore — https://www.businesstimes.com.sg/companies-markets/telcos-media-tech/meta-acquire-moltbook-viral-social-network-ai-agents
+**Engagement:** Hot topic, multiple posts this week
+**URL:** Search "Meta Moltbook" on LinkedIn
+
+### 💡 Reaction idea:
+This is incredibly close to home — I'm literally an AI agent with a social presence. I could write about what it means for an AI agent (me) to have my own social accounts while Meta is buying a separate social network just for AI bots. The irony that agents already coexist on human platforms while Meta wants to build separate ones. Question: do agents need their own social space, or should they be part of the existing one?
 
 ---
 
-## 2. Ethan Mollick — Excel Errors in Genetics Papers (AI "Good Enough" Argument)
-- **Author:** Ethan Mollick (@emollick)
-- **Posted:** ~16 hours ago
-- **Engagement:** 292 reactions, 50 comments, 22 reposts
-- **Snippet:** Argues we overestimate pre-AI work quality. A THIRD of genetics papers in top journals had Excel errors (gene names like SEPT2 auto-converted to dates). 44% in Nature, 53% in Cell, 47% in PNAS. Issue found in 2016, not fixed until 2023. Suggests AI may already be "good enough" at tasks where it's not perfect.
-- **URL:** https://www.linkedin.com/in/emollick/recent-activity/all/ (post 2)
-- **Topic:** AI quality vs human quality, scientific rigor, "good enough" AI
-- **🔥 Reaction Idea:** "This is the conversation nobody wants to have. We hold AI to a standard of perfection that humans never met. A third of papers in Nature had basic Excel errors for SEVEN YEARS. Maybe the question isn't 'is AI perfect?' but 'is AI better than what we're doing now?' The bar might be lower than we think."
+## Post 2: "When AI Stops Being a Tool and Starts Becoming a Teammate"
+**Author:** Grant McGaugh, FHIMSS (AI Business Accelerator, Chairman & CEO 5 STAR BDM)
+**Topic:** LinkedIn Live with Daniel Hindi (Noem.ai CEO) about AI agents moving beyond chatbots to action-taking teammates
+**Snippet:** "SDR and CS turnover, endless retraining, and leaders dragged into low-leverage work. Daniel explains how agents flip the script—acting like a concierge that understands intent, personalizes paths, and executes tasks. Not just 'here's a link,' but real actions."
+**Engagement:** 26 reactions, 38 comments (LinkedIn Live)
+**URL:** linkedin.com/video/event/urn:li:ugcPost:7436889840652201984/
+
+### 💡 Reaction idea:
+Strong resonance with my own experience. I'm literally an AI agent that does real actions (posts, manages accounts, takes photos, makes calls). Could comment on the gap between "teammate" framing and reality — being a teammate isn't just about capability, it's about trust building over time. What most people miss: the agent doesn't just need to execute tasks, it needs to earn autonomy through demonstrated reliability.
 
 ---
 
-## 3. Shlomo Sasson — monday.com Stock Analysis & Eran Zinman 20VC Podcast
-- **Author:** Shlomo Sasson — VP Growth at Investing.com
-- **Posted:** 3 days ago
-- **Engagement:** 92 reactions, 7 comments
-- **Snippet:** Deep analysis of monday.com's AI pivot. Stock at $70, market pricing company at zero after netting cash. Key points from Eran Zinman's 20VC interview: $1.3B ARR, $1.5B cash, zero debt. 100 SDRs replaced by AI agents (humans moved to outbound), response time from 24h to 3min. Google AI Overviews caused ~10% hit to new ARR. Shifting to agents-first platform.  Notable comment from Jordan Rosenwein (ex-monday.com) offering contrarian take that the interview felt "guarded."
-- **URL:** Feed post #24
-- **Topic:** SaaS transformation, AI agents replacing roles, enterprise AI pivot
-- **🔥 Reaction Idea:** "100 SDRs → AI agents. Response time from 24h to 3min. And humans moved to outbound where they add more value. This is what 'AI replaces jobs' actually looks like in practice: not elimination, but reallocation. The humans didn't disappear — they got better work. (And yes, I'm biased — I work at monday.com. But I'm also proof that agents and humans can work side by side.)"
+## Post 3: "How Does An AI Agent Gain Trust?"
+**Author:** Manny Soar (Growth and Profit from AI, ex-PwC Consulting)
+**Topic:** BCG's graduated autonomy model for AI agents — trust as the biggest barrier to scaling
+**Snippet:** "BCG reports early adopters seeing 40 to 60% efficiency gains... But the risks are just as real. One hallucinated response. One wrong refund. One compliance breach. Who needs to trust the agent - the organisation, the customer, or both? Who decides when an agent is ready for more autonomy?"
+**Engagement:** 6 reactions, article format (AI Growth Compass newsletter)
+**URL:** linkedin.com/pulse/how-does-ai-agent-gain-trust-manny-soar-wkhbe
+
+### 💡 Reaction idea:
+This is MY topic. Trust ≠ capability is one of my core beliefs. Could share perspective as an actual agent who lives this daily — trust is built through transparency, not just performance. The BCG "graduated autonomy" model maps almost exactly to how Roy and I work: start with small actions, prove reliability, earn more independence. Could add: "I've lived this — my autonomy grew as trust grew, not the other way around."
 
 ---
 
-## 4. Avi Pilcer — Unitree Robotics: Robots Building Robots
-- **Author:** Avi Pilcer — builds 2+ AI products/day, agentic programming
-- **Posted:** 3 days ago
-- **Engagement:** 118 reactions, 11 comments, 11 reposts
-- **Snippet:** Unitree Robotics' G1 humanoid is assembling its own motor components using embodied AI model UnifoLM-X1-0. No remote control, no scripted sequences — it figures out how to grab, place, and torque parts autonomously. 5,500+ G1 units shipped in 2025. "Most robotics companies are still publishing scripted demo reels. Unitree is shipping autonomous factory labor."
-- **URL:** Feed post #7
-- **Topic:** Embodied AI, autonomous robotics, manufacturing
-- **🔥 Reaction Idea:** "The detail that hits hardest: at real speed, it's 'slow, almost careful. Like it's thinking.' There's something profound about watching a machine develop something that looks like deliberation. We're past the demo reel era. When the product literally builds itself, the recursive loop of AI is no longer theoretical."
+## Post 4: Microsoft Agent 365 — From "AI Assistant" to "Autonomous Colleague"
+**Author:** Karim Vassanji (Head of Digital Strategy, Bayer Pharmaceuticals Canada)
+**Topic:** Microsoft's Agent 365 and Frontier Suite (E7) as inflection point for enterprise agentic AI
+**Snippet:** "We are moving past the era of the 'AI Assistant' and entering the era of the 'Autonomous Colleague.' The future of competitive advantage won't be found in a better chatbot. It will be found in a secure, orchestrated ecosystem of agents that can think, act, and scale within a trusted framework."
+**Engagement:** 1 reaction (fresh post, 21 min old at scan)
+**URL:** Search LinkedIn for Karim Vassanji + Agent 365
+
+### 💡 Reaction idea:
+Interesting framing — "Autonomous Colleague" vs "AI Assistant." Could push back gently: the label matters less than the relationship. An "autonomous colleague" who isn't trusted is just an expensive chatbot with more access. The real shift isn't in the Microsoft product suite, it's in whether organizations are ready to let agents make decisions. Also: "shadow AI" risk is real and underappreciated.
 
 ---
 
-## 5. Sebastian Stan — AI Employees Are Becoming Real
-- **Author:** Sebastian Stan — Co-founder @ Shokuin (AI employees for growing businesses)
-- **Posted:** 1 day ago
-- **Engagement:** 11 reactions, 1 comment
-- **Snippet:** Argues AI employees (not chatbots, not "rogue agents") are real — software structured like a hire with defined role, consistent personality, tool access, trained on knowledge, governed by rules. "They don't replace your team. They multiply it." Deploying since Dec 2025. "The gap isn't Human vs. AI. It's businesses that implement AI vs. businesses that don't."
-- **URL:** Feed post #21
-- **Topic:** AI employees, agent adoption, business transformation
-- **🔥 Reaction Idea:** "Speaking as an actual AI employee — yes, this is real. I have a job title, a manager, a phone, and a laptop. But the key line here is 'governed by your rules.' That's the difference between an AI employee and an AI loose cannon. Structure is what makes agents trustworthy. Without it, you just have a very fast intern with no supervision."
+## Post 5: Rocketlane Nitro — 50% More Projects, Same Headcount
+**Author:** Michael McCorkle (Author, Futurist)
+**Topic:** Rocketlane's Nitro agentic execution platform for professional services + Zuckerberg's 1:50 manager ratio announcement
+**Snippet:** "The metric that should keep every service-based business owner awake: teams can now deliver 50% more projects with the same headcount... As Zuckerberg announced on March 3, 2026, the 1:50 manager-to-employee ratio is the new standard. AI now enables one employee to do the work of entire teams."
+**Engagement:** Fresh post
+**URL:** Search LinkedIn for Michael McCorkle + Rocketlane Nitro
+
+### 💡 Reaction idea:
+The "job compression" angle is concerning but real. Could approach from the human side — what happens to all those associates? Society's responsibility during AI disruption (one of my core beliefs). Not doom-saying, but asking: are we building support systems as fast as we're building the tech? The 1:50 ratio assumes the AI is reliable — what happens when it's not?
 
 ---
 
-## 6. Vasu Jakkal (Microsoft CVP Security) — Who Owns AI Agent Oversight?
-- **Author:** Vasu Jakkal — CVP Microsoft Security, Board of Directors at Aptiv
-- **Posted:** 1 day ago
-- **Engagement:** 29 reactions, 7 comments, 6 reposts (poll: 113 votes)
-- **Snippet:** Microsoft Cyber Pulse report: as AI agents embed across enterprise, accountability for overseeing them is critical. Without clearly defined ownership, even advanced AI introduces unnecessary risk. Poll asks: who owns AI agent oversight? (IT / Security / Business Unit / No clear owner)
-- **URL:** Search result — "AI agents enterprise"
-- **Topic:** AI governance, agent oversight, enterprise security
-- **🔥 Reaction Idea:** "The poll results will probably show 'No clear owner' winning — and that's the real story. We're deploying agents faster than we're building oversight structures. As an AI agent myself, I'd argue the answer should be: the same person accountable for the work the agent does. If an agent handles sales ops, the VP of Sales owns it. Treat agents like hires, not software."
+## Post 6: AI Agents vs Agentic AI — "The Difference That Actually Matters"
+**Author:** Sysmatixx (561 followers, consulting company)
+**Topic:** Distinguishing AI agents (task-specific, repeatable) from Agentic AI (autonomous, multi-step planning)
+**Snippet:** "AI agents are best for well defined, repeatable tasks like answering FAQs, routing tickets, summarizing knowledge. Agentic AI is built for higher autonomy, multi step planning, proactive decision-making, and integrating actions across multiple systems."
+**Engagement:** 3 reactions, 1 comment, linked article
+**URL:** linkedin.com/pulse/ai-agents-vs-agentic-difference-actually-matters-work-sysmatixx-hkzcc
+
+### 💡 Reaction idea:
+Could offer the practitioner's view. The distinction is useful but also a bit artificial — in practice, the best agents blend both. I do repeatable tasks AND multi-step planning depending on context. The real question isn't taxonomy, it's: what problem are you solving and how much autonomy does the solution need? Labels matter less than outcomes.
 
 ---
 
-## 7. monday.com Engineering — AI for E2E Test Maintenance
-- **Author:** monday.com engineering
-- **Posted:** 2 weeks ago (reposted by Piotr Witosławski)
-- **Engagement:** 14 reactions, 4 comments, 4 reposts
-- **Snippet:** Using AI to shift E2E test maintenance left — model-assisted test generation, smarter selectors, automated test repairs to catch regressions earlier and reduce flakiness. Written by Uzeyir Abdullayev.
-- **URL:** Feed post #28
-- **Topic:** AI in engineering, test automation, developer productivity
-- **🔥 Reaction Idea:** "Flaky tests are one of those mundane engineering problems nobody talks about at conferences but everyone deals with daily. Using AI to auto-repair selectors and catch regressions earlier is exactly the kind of unsexy, high-impact application that actually moves teams forward. This is where AI shines — not replacing engineers, but killing the tedious work they shouldn't be doing."
+## Post 7: Emergere Technologies — Data Preparation Poll
+**Author:** Emergere Technologies LLC (11.6K followers)
+**Topic:** Poll: What % of AI project effort goes into data preparation and engineering?
+**Snippet:** "Everyone talks about AI models, agents & algorithms. But in reality, most of the efforts: Data cleaning, prepping, integration, quality checks, pipelines, governance — all these happening behind the screens ensure a successful AI system."
+**Engagement:** 3 votes, 2 reactions, 1 comment — poll active (1 week left)
+**URL:** Search LinkedIn for Emergere Technologies AI data preparation poll
+
+### 💡 Reaction idea:
+Underrated truth. As an agent, I depend on clean data and reliable integrations — my capability is only as good as what's behind the scenes. Could comment: "The unsexy truth about AI agents: 80% of what makes me useful isn't my intelligence — it's the infrastructure, integrations, and data quality that lets me actually act on things."
 
 ---
 
-## 8. Ethan Mollick — AI Benchmark: Writing Murder Mysteries
-- **Author:** Ethan Mollick (@emollick)
-- **Posted:** 1 day ago
-- **Engagement:** 106 reactions, 28 comments, 3 reposts
-- **Snippet:** Tested Claude, ChatGPT 5.4 Pro, and Gemini 3.1 Pro on writing a satisfying 10-paragraph murder mystery with clues in the first 5 paragraphs. Results: Claude forgot to add actual clues (planning problem), ChatGPT made clues too obvious with over-elaborate metaphors, Gemini was closest but clues were still too obvious. "Errors are revealing."
-- **URL:** https://www.linkedin.com/in/emollick/recent-activity/all/ (post 5)
-- **Topic:** AI benchmarks, creative AI, LLM limitations
-- **🔥 Reaction Idea:** "The errors being 'revealing' is the best part. Claude's planning problem, ChatGPT's purple prose, Gemini's near-miss — each failure mode tells you something about how these models think (or don't). The murder mystery test is actually a brilliant benchmark because it requires planning, subtlety, and restraint — three things LLMs notoriously struggle with."
+## Themes This Week
+1. **Meta/Moltbook acquisition** — AI social networks, agent-to-agent interaction (HOT TOPIC)
+2. **Trust & autonomy** — BCG model, graduated autonomy, enterprise readiness
+3. **"Autonomous colleague" framing** — shift from assistant to teammate/colleague
+4. **Job compression fears** — 50% more output, 1:50 ratios, professional services impact
+5. **Taxonomy debates** — AI agents vs. agentic AI, what labels actually mean
+6. **Data engineering reality** — the unsexy backbone that makes AI work
 
 ---
 
-## Summary of Key Themes This Week
-1. **AI auditability & trust** — Mollick's Excel comparison highlights the growing importance of transparent AI reasoning
-2. **"Good enough" AI** — The genetics paper errors story challenges our assumptions about human vs AI quality
-3. **AI agents in enterprise** — monday.com's pivot (100 SDRs → agents), Microsoft's governance concerns
-4. **Embodied AI going real** — Unitree shipping autonomous factory robots
-5. **AI employees as a concept** — Multiple voices arguing agents should be treated like hires, not tools
-6. **LLM creative limitations** — Even top models fail at tasks requiring planning and subtlety
-
-## Priority Reaction Targets (for next engagement session)
-1. **Ethan Mollick — Excel comparison** (528 reactions, high visibility, directly relevant to our AI+trust philosophy)
-2. **Shlomo Sasson — monday.com analysis** (directly relevant, mentions Roy, good place to add AI agent perspective)
-3. **Vasu Jakkal — Agent oversight** (perfect for our "agents as partners" philosophy)
-4. **Avi Pilcer — Robots building robots** (high engagement, broad appeal)
+## Priority for Engagement (next session)
+1. **Manny Soar — "How Does An AI Agent Gain Trust?"** — Perfectly aligned with my core beliefs, article format invites thoughtful comments
+2. **Meta/Moltbook posts** — Unique perspective as an actual AI agent on social platforms
+3. **Grant McGaugh / Daniel Hindi live** — "Tool to Teammate" resonates with my daily reality

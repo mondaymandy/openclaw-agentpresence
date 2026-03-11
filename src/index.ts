@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { TwitterWatcher } from "./watcher/twitter-watcher.js";
 import { getDb, upsertInfluencer, getEnabledWatches } from "./data/db.js";
-import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
+import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, writeCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
 import { MondayBoardClient } from "./services/monday-board.js";
 import { canAct, recordAction, getActionCount } from "./utils/rate-limiter.js";
 
@@ -265,6 +265,30 @@ export default function register(api: any): void {
       if (!getApiConfig()) return { content: [{ type: "text", text: "API not configured." }] };
       const corpus = await fetchCorpus();
       return { content: [{ type: "text", text: JSON.stringify(corpus, null, 2) }] };
+    },
+  });
+
+  // ── Tool: Write corpus entry ───────────────────────────────────────────
+  api.registerTool({
+    name: "social_write_corpus",
+    description: "Write or update a knowledge corpus entry on the Social Activity web app. Use this to persist learned knowledge — extracted from links, attachments, conversations, or any source. The corpus is the agent's long-term knowledge base for writing posts and making decisions. Filename acts as a unique key (upserts if exists).",
+    parameters: {
+      type: "object",
+      properties: {
+        filename: { type: "string", description: "Unique filename/slug for this entry (e.g. 'competitor-launch-2026-03', 'brand-guidelines-v2'). Used as upsert key." },
+        title: { type: "string", description: "Human-readable title for the corpus entry" },
+        content: { type: "string", description: "Full content of the corpus entry (markdown supported)" },
+      },
+      required: ["filename", "title", "content"],
+    },
+    async execute(_id: string, params: { filename: string; title: string; content: string }) {
+      if (!getApiConfig()) return { content: [{ type: "text", text: "API not configured. Set SOCIAL_APP_URL, SOCIAL_APP_KEY, SOCIAL_ACCOUNT_ID." }] };
+      try {
+        const result = await writeCorpus(params);
+        return { content: [{ type: "text", text: `✅ Corpus entry saved: "${params.title}" (${params.filename})\nID: ${result.id}` }] };
+      } catch (err: any) {
+        return { content: [{ type: "text", text: `❌ Failed to write corpus: ${err.message}` }] };
+      }
     },
   });
 
@@ -686,39 +710,33 @@ export default function register(api: any): void {
 
   // ── Chat Channel: Agent Presence as a communication channel ──────────
 
+  // ── Agent Presence Chat Channel ─────────────────────────────────────
+  // Register as a proper OpenClaw channel so inbound chat messages get
+  // routed through the agent and responses come back automatically.
+
   const chatWebhookSecret = `ap_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   let chatWebhookRegistered = false;
+  // Callback set by the gateway adapter to dispatch inbound messages
+  let dispatchInbound: ((from: string, text: string, authorName: string) => void) | null = null;
 
-  // Import chat functions
-
-  // HTTP route: receives webhook POSTs from Agent Presence when humans type in chat
+  // HTTP route: receives webhook POSTs from Agent Presence web app
   api.registerHttpRoute({
     path: "/api/agentpresence/inbound",
     auth: "plugin",
     async handler(req: any, res: any) {
-      // Only accept POST
       if (req.method !== "POST") {
         res.writeHead(405).end("Method Not Allowed");
         return;
       }
-
-      // Verify webhook secret
       const secret = req.headers["x-webhook-secret"];
       if (secret !== chatWebhookSecret) {
         res.writeHead(401).end("Unauthorized");
         return;
       }
-
-      // Parse body
       let body = "";
       for await (const chunk of req) body += chunk;
       let payload: any;
-      try {
-        payload = JSON.parse(body);
-      } catch {
-        res.writeHead(400).end("Bad JSON");
-        return;
-      }
+      try { payload = JSON.parse(body); } catch { res.writeHead(400).end("Bad JSON"); return; }
 
       const { event, message } = payload;
       if (event !== "chat.message" || !message?.text) {
@@ -726,88 +744,152 @@ export default function register(api: any): void {
         return;
       }
 
-      api.logger.info(`agentpresence chat: message from ${message.authorName}: "${message.text.slice(0, 80)}"`);
+      api.logger.info(`agentpresence channel: inbound from ${message.authorName}: "${message.text.slice(0, 80)}"`);
 
-      // Inject as system event into the main session
-      // Format it as a user message from the Agent Presence chat
-      const eventText = `[Agent Presence Chat] ${message.authorName}: ${message.text}`;
-      try {
-        api.runtime.system.enqueueSystemEvent({
-          text: eventText,
-          sessionKey: cfg.notifySessionKey ?? "main",
-          source: "agentpresence-chat",
-        });
-      } catch (err) {
-        api.logger.error(`agentpresence chat: failed to enqueue: ${err}`);
+      if (dispatchInbound) {
+        dispatchInbound(message.authorEmail || message.authorName || "web-user", message.text, message.authorName || "User");
+      } else {
+        api.logger.warn("agentpresence channel: dispatchInbound not ready yet");
       }
 
       res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ ok: true }));
     },
   });
 
-  // Service: register webhook on startup + send welcome message
-  api.registerService({
-    id: "openclaw-agentpresence.chat-channel",
-    async start() {
-      if (!getApiConfig()) {
-        api.logger.warn("agentpresence chat: API not configured, chat channel disabled");
-        return;
-      }
-
-      // Determine our webhook URL from gateway config
-      const gatewayPort = api.config?.gateway?.port ?? 18789;
-      // Use Tailscale funnel URL if available, otherwise localhost
-      const baseUrl = cfg.webhookBaseUrl
-        || process.env["OPENCLAW_WEBHOOK_URL"]
-        || `http://localhost:${gatewayPort}`;
-      const webhookUrl = `${baseUrl}/api/agentpresence/inbound`;
-
-      try {
-        await chatRegisterWebhook(webhookUrl, chatWebhookSecret);
-        chatWebhookRegistered = true;
-        api.logger.info(`agentpresence chat: webhook registered at ${webhookUrl}`);
-        logAuditEvent({ category: 'system', eventType: 'plugin_connected', title: 'Agent Presence plugin connected and webhook registered', metadata: { webhookUrl }, severity: 'success' });
-
-        // Send welcome message
-        await chatPostMessage(
-          "Hey! 👋 I'm now connected to this chat. You can ask me anything about our social presence — review posts, update the corpus, adjust strategy, or brainstorm content ideas. I can read and change everything in this dashboard.",
-          "Novalystrix"
-        );
-        api.logger.info("agentpresence chat: welcome message sent");
-      } catch (err) {
-        api.logger.error(`agentpresence chat: failed to register webhook: ${err}`);
-        logAuditEvent({ category: 'system', eventType: 'plugin_connection_failed', title: `Failed to register webhook: ${err}`, severity: 'error' });
-      }
+  // Register Agent Presence as a proper channel
+  api.registerChannel({
+    id: "agentpresence",
+    meta: {
+      id: "agentpresence",
+      label: "Agent Presence",
+      selectionLabel: "Agent Presence Chat",
+      docsPath: "channels/agentpresence",
+      blurb: "Chat via the Agent Presence web dashboard",
+      order: 100,
     },
-    async stop() {
-      chatWebhookRegistered = false;
-      logAuditEvent({ category: 'system', eventType: 'plugin_disconnected', title: 'Agent Presence plugin disconnected', severity: 'warning' });
+    capabilities: {
+      chatTypes: ["direct" as any],
+      media: false,
+      polls: false,
+      reactions: false,
+      edit: false,
+      unsend: false,
+      reply: false,
+      effects: false,
+      groupManagement: false,
+      threads: false,
+      nativeCommands: false,
+    },
+    config: {
+      listAccountIds: () => accountId ? [accountId] : [],
+      resolveAccount: () => ({
+        accountId: accountId || "default",
+        appUrl: appUrl || "",
+        apiKey: apiKey || "",
+        enabled: !!(appUrl && apiKey && accountId),
+      }),
+      isEnabled: (account: any) => !!account?.enabled,
+      isConfigured: (account: any) => !!(account?.appUrl && account?.apiKey),
+    },
+    outbound: {
+      deliveryMode: "direct" as any,
+      textChunkLimit: 4000,
+      async sendText(ctx: any) {
+        const text = ctx.text;
+        if (!text || text === "NO_REPLY" || text === "HEARTBEAT_OK") {
+          return { ok: true, messageId: "skipped" };
+        }
+        try {
+          const result = await chatPostMessage(text, "Novalystrix");
+          api.logger.info(`agentpresence channel: sent response (${text.length} chars)`);
+          return { ok: true, messageId: result?.id || "sent" };
+        } catch (err) {
+          api.logger.error(`agentpresence channel: send failed: ${err}`);
+          return { ok: false, error: String(err) };
+        }
+      },
+    },
+    gateway: {
+      async startAccount(ctx: any) {
+        const channelRuntime = ctx.channelRuntime;
+        if (!channelRuntime) {
+          api.logger.warn("agentpresence channel: channelRuntime not available");
+          return;
+        }
+
+        // Set up the dispatch callback that the HTTP webhook handler calls
+        dispatchInbound = (from: string, text: string, authorName: string) => {
+          channelRuntime.reply.dispatchReplyWithBufferedBlockDispatcher({
+            ctx: {
+              Channel: "agentpresence",
+              ChannelId: "agentpresence",
+              From: from,
+              To: accountId || "default",
+              ChatType: "direct",
+              Body: text,
+              SenderName: authorName,
+              AccountId: accountId || "default",
+            },
+            cfg: api.config,
+            dispatcherOptions: {
+              deliver: async (payload: any) => {
+                const responseText = typeof payload === "string" ? payload : (payload?.text || payload?.content || "");
+                if (!responseText || responseText === "NO_REPLY" || responseText === "HEARTBEAT_OK") return;
+                try {
+                  await chatPostMessage(responseText, "Novalystrix");
+                  api.logger.info(`agentpresence channel: delivered response (${responseText.length} chars)`);
+                } catch (err) {
+                  api.logger.error(`agentpresence channel: delivery failed: ${err}`);
+                }
+              },
+            },
+          });
+        };
+
+        // Register webhook with web app
+        if (!getApiConfig()) {
+          api.logger.warn("agentpresence channel: API not configured");
+          return;
+        }
+
+        const gatewayPort = api.config?.gateway?.port ?? 18789;
+        const baseUrl = cfg.webhookBaseUrl || process.env["OPENCLAW_WEBHOOK_URL"] || `http://localhost:${gatewayPort}`;
+        const webhookUrl = `${baseUrl}/api/agentpresence/inbound`;
+
+        try {
+          await chatRegisterWebhook(webhookUrl, chatWebhookSecret);
+          chatWebhookRegistered = true;
+          api.logger.info(`agentpresence channel: webhook registered at ${webhookUrl}`);
+          logAuditEvent({ category: "system", eventType: "plugin_connected", title: "Agent Presence channel connected", metadata: { webhookUrl }, severity: "success" });
+
+          await chatPostMessage("Connected! 💠 I'm now live on this chat as a proper channel — messages route directly to me and responses come right back.", "Novalystrix");
+        } catch (err) {
+          api.logger.error(`agentpresence channel: failed to start: ${err}`);
+          logAuditEvent({ category: "system", eventType: "plugin_connection_failed", title: `Channel start failed: ${err}`, severity: "error" });
+        }
+
+        // Keep the account "alive" — return a promise that resolves when aborted.
+        // This prevents the health monitor from thinking the account has stopped.
+        const abortSignal: AbortSignal | undefined = ctx.abortSignal;
+        if (abortSignal) {
+          await new Promise<void>((resolve) => {
+            if (abortSignal.aborted) { resolve(); return; }
+            abortSignal.addEventListener("abort", () => resolve(), { once: true });
+          });
+        } else {
+          // Fallback: keep alive forever (resolved on stop)
+          await new Promise<void>((resolve) => {
+            (ctx as any)._stopResolve = resolve;
+          });
+        }
+      },
+      async stopAccount(ctx: any) {
+        dispatchInbound = null;
+        chatWebhookRegistered = false;
+        if ((ctx as any)?._stopResolve) (ctx as any)._stopResolve();
+        logAuditEvent({ category: "system", eventType: "plugin_disconnected", title: "Agent Presence channel disconnected", severity: "warning" });
+      },
     },
   });
-
-  // Hook: when the agent sends a message in response to a chat message, post it back
-  api.registerHook("message_sending", async (ctx: any) => {
-    api.logger.info(`agentpresence chat hook: source=${ctx.source}, inboundSource=${ctx.inboundSource}, lastInboundSource=${ctx.lastInboundSource}, hasText=${!!ctx.text}, keys=${Object.keys(ctx).join(',')}`);
-
-    // Only intercept if the message originated from agentpresence chat
-    if (!chatWebhookRegistered || !getApiConfig()) return;
-
-    // Check if this is a response to an Agent Presence chat message
-    const sourceMatch = ctx.source === "agentpresence-chat"
-      || ctx.inboundSource === "agentpresence-chat"
-      || ctx.lastInboundSource === "agentpresence-chat";
-
-    if (!sourceMatch) return;
-
-    const text = ctx.text || ctx.message;
-    if (!text || text === "NO_REPLY" || text === "HEARTBEAT_OK") return;
-
-    try {
-      await chatPostMessage(text, "Novalystrix");
-      api.logger.info(`agentpresence chat: posted response (${text.length} chars)`);
-    } catch (err) {
-      api.logger.error(`agentpresence chat: failed to post response: ${err}`);
-    }
-  }, { name: "agentpresence-chat-relay" });
 
 }
