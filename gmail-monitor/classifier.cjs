@@ -55,6 +55,16 @@ function classify(email) {
 
   // --- LinkedIn Classification ---
   if (platform === 'linkedin') {
+    // Filter out LinkedIn system/marketing emails
+    const systemSubjects = [
+      'welcome to premium', 'better on the app', 'get started',
+      'people viewed your profile', 'your weekly digest', 'jobs you may',
+      'congratulate', 'work anniversary', 'birthday', 'trending on linkedin',
+      'your daily rundown', 'suggested for you', 'newsletter',
+    ];
+    if (systemSubjects.some(s => subject.includes(s))) {
+      return { platform, action: 'ignore', data: { reason: 'linkedin system email', subject: email.subject } };
+    }
     // Comment on your post
     if (subject.includes('commented on') || subject.includes('replied to your comment') || subject.includes('reaction to your')) {
       return { platform, action: 'comment', data: parseLinkedInComment(email) };
@@ -127,8 +137,9 @@ function parseXFollow(email) {
 
 function parseLinkedInComment(email) {
   const nameMatch = (email.subject || '').match(/^(.+?)\s+(commented|replied|reaction)/i);
+  const fromName = extractSenderName(email.from);
   return {
-    who: nameMatch ? nameMatch[1].trim() : 'Unknown',
+    who: nameMatch ? nameMatch[1].trim() : (fromName || 'Unknown'),
     subject: email.subject,
     snippet: email.snippet,
     body: email.body,
@@ -136,17 +147,20 @@ function parseLinkedInComment(email) {
 }
 
 function parseLinkedInConnection(email) {
+  // Try subject first, then fall back to sender display name
   const nameMatch = (email.subject || '').match(/^(.+?)\s+(wants|sent|invitation)/i);
+  const fromName = extractSenderName(email.from);
   return {
-    who: nameMatch ? nameMatch[1].trim() : 'Unknown',
+    who: nameMatch ? nameMatch[1].trim() : (fromName || 'Unknown'),
     subject: email.subject,
   };
 }
 
 function parseLinkedInDM(email) {
   const nameMatch = (email.subject || '').match(/^(.+?)\s+sent/i) || (email.subject || '').match(/from\s+(.+?)$/i);
+  const fromName = extractSenderName(email.from);
   return {
-    who: nameMatch ? nameMatch[1].trim() : 'Unknown',
+    who: nameMatch ? nameMatch[1].trim() : (fromName || 'Unknown'),
     subject: email.subject,
     snippet: email.snippet,
   };
@@ -154,12 +168,26 @@ function parseLinkedInDM(email) {
 
 function parseLinkedInMention(email) {
   const nameMatch = (email.subject || '').match(/^(.+?)\s+mentioned/i);
+  const fromName = extractSenderName(email.from);
   return {
-    who: nameMatch ? nameMatch[1].trim() : 'Unknown',
+    who: nameMatch ? nameMatch[1].trim() : (fromName || 'Unknown'),
     subject: email.subject,
     snippet: email.snippet,
     body: email.body,
   };
+}
+
+/**
+ * Extract display name from email "from" field.
+ * e.g. '"Lital Piker" <invitations@linkedin.com>' → 'Lital Piker'
+ */
+function extractSenderName(from) {
+  if (!from) return null;
+  // "Name" <email> or Name <email>
+  const quoted = from.match(/^"?([^"<]+)"?\s*</);
+  if (quoted) return quoted[1].trim();
+  // Just email
+  return null;
 }
 
 module.exports = { classify, SENDERS };
