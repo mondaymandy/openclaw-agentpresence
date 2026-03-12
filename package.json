@@ -14,7 +14,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "@google-cloud/local-auth": "^2.1.0",
+    "better-sqlite3": "^11.10.0",
+    "googleapis": "^105.0.0",
+    "imap": "^0.8.19",
+    "mailparser": "^3.9.4",
+    "otpauth": "^9.5.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
