@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { TwitterWatcher } from "./watcher/twitter-watcher.js";
 import { getDb, upsertInfluencer, getEnabledWatches } from "./data/db.js";
-import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, writeCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
+import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, writeCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, updatePostStatus, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
 import { MondayBoardClient } from "./services/monday-board.js";
 import { canAct, recordAction, getActionCount } from "./utils/rate-limiter.js";
 
@@ -418,18 +418,19 @@ export default function register(api: any): void {
   // ── Tool: Queue a post for scheduled publishing ───────────────────────
   api.registerTool({
     name: "social_queue_post",
-    description: "Queue a post for future publishing. The main agent writes posts with full context, then a lightweight cron publishes them on schedule. Use ISO timestamps for scheduledFor (e.g. '2026-03-08T12:00:00-05:00' for noon ET).",
+    description: "Queue a post for future publishing. The main agent writes posts with full context, then a lightweight cron publishes them on schedule. Use ISO timestamps for scheduledFor (e.g. '2026-03-08T12:00:00-05:00' for noon ET). Set status='draft' to save without scheduling (won't auto-publish until approved).",
     parameters: {
       type: "object",
       properties: {
         platform: { type: "string", enum: ["twitter", "linkedin"], description: "Target platform" },
         type: { type: "string", enum: ["post", "thread", "reply", "quote"], description: "Post type" },
         content: { type: "string", description: "Full post content" },
-        scheduledFor: { type: "string", description: "ISO timestamp for when to publish" },
+        scheduledFor: { type: "string", description: "ISO timestamp for when to publish (optional for drafts)" },
+        status: { type: "string", enum: ["scheduled", "draft"], description: "Post status — 'draft' saves without scheduling, 'scheduled' (default) queues for auto-publish" },
       },
-      required: ["platform", "type", "content", "scheduledFor"],
+      required: ["platform", "type", "content"],
     },
-    async execute(_id: string, params: { platform: string; type: string; content: string; scheduledFor: string }) {
+    async execute(_id: string, params: { platform: string; type: string; content: string; scheduledFor?: string; status?: string }) {
       if (!getApiConfig()) return { content: [{ type: "text", text: "API not configured." }] };
       try {
         // Pre-publish guardrail check
@@ -445,13 +446,30 @@ export default function register(api: any): void {
         if (warns.length > 0) {
           warnText = "\n\n\u26a0\ufe0f Guardrail warnings:\n" + warns.map((v: any) => "- " + v.guardrail.name + ": matched \"" + v.match + "\"").join("\n");
         }
+        const isDraft = params.status === "draft";
+        if (!isDraft && !params.scheduledFor) {
+          return { content: [{ type: "text", text: "scheduledFor is required when status is 'scheduled'. Use status='draft' to save without a schedule." }] };
+        }
         const result = await queuePost({
           platform: params.platform,
           postType: params.type,
           text: params.content,
           scheduledFor: params.scheduledFor,
+          status: isDraft ? "draft" : "scheduled",
         });
-        const dt = new Date(params.scheduledFor);
+        if (isDraft) {
+          logAuditEvent({
+            category: 'content',
+            eventType: 'post_drafted',
+            platform: params.platform,
+            title: `Drafted ${params.type}: "${params.content.slice(0, 80)}"`,
+            itemId: result.id,
+            itemType: 'post',
+            severity: 'info',
+          });
+          return { content: [{ type: "text", text: `Post saved as draft (id: ${result.id}) on ${params.platform}. Use social_publish_next with approveDraft=${result.id} and scheduledFor to approve and schedule it.` }] };
+        }
+        const dt = new Date(params.scheduledFor!);
         logAuditEvent({
           category: 'content',
           eventType: 'post_scheduled',
@@ -471,18 +489,43 @@ export default function register(api: any): void {
   // ── Tool: Get next scheduled post to publish ──────────────────────────
   api.registerTool({
     name: "social_publish_next",
-    description: "Get the next scheduled post that's due for publishing. Returns null if nothing is due. After posting via browser, call this again with the post ID and URL to mark it published.",
+    description: "Get the next scheduled post that's due for publishing. Returns null if nothing is due. After posting via browser, call this again with the post ID and URL to mark it published. Use approveDraft to approve a draft and schedule it.",
     parameters: {
       type: "object",
       properties: {
         platform: { type: "string", enum: ["twitter", "linkedin"], description: "Filter by platform" },
         markPublished: { type: "string", description: "Post ID to mark as published (after posting)" },
         url: { type: "string", description: "Published post URL (when marking published)" },
+        approveDraft: { type: "string", description: "Draft post ID to approve and schedule" },
+        scheduledFor: { type: "string", description: "ISO timestamp to schedule the approved draft for" },
       },
       required: [],
     },
-    async execute(_id: string, params: { platform?: string; markPublished?: string; url?: string }) {
+    async execute(_id: string, params: { platform?: string; markPublished?: string; url?: string; approveDraft?: string; scheduledFor?: string }) {
       if (!getApiConfig()) return { content: [{ type: "text", text: "API not configured." }] };
+
+      // Approve a draft → move to scheduled
+      if (params.approveDraft) {
+        try {
+          const updates: any = { status: "scheduled" };
+          if (params.scheduledFor) updates.scheduledFor = params.scheduledFor;
+          const result = await updatePostStatus(params.approveDraft, updates);
+          const dt = params.scheduledFor ? new Date(params.scheduledFor) : null;
+          logAuditEvent({
+            category: 'content',
+            eventType: 'post_approved',
+            platform: result.platform,
+            title: `Draft approved → scheduled: "${(result.text || '').slice(0, 80)}"`,
+            metadata: { scheduledFor: params.scheduledFor },
+            itemId: result.id,
+            itemType: 'post',
+            severity: 'success',
+          });
+          return { content: [{ type: "text", text: `Draft ${result.id} approved and scheduled${dt ? ` for ${dt.toLocaleString("en-US", { timeZone: "America/New_York" })} ET` : ''}.` }] };
+        } catch (err) {
+          return { content: [{ type: "text", text: `Failed to approve draft: ${err}` }] };
+        }
+      }
       
       if (params.markPublished) {
         const result = await markPostPublished(params.markPublished, params.url);

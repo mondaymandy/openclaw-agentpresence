@@ -105,11 +105,23 @@ export async function queuePost(post: {
   platform: string;
   postType?: string;
   text: string;
-  scheduledFor: string; // ISO timestamp
+  scheduledFor?: string; // ISO timestamp — optional for drafts
+  status?: string; // "scheduled" (default) or "draft"
 }): Promise<any> {
   return apiFetch("/posts", {
     method: "POST",
-    body: JSON.stringify({ ...post, status: "scheduled" }),
+    body: JSON.stringify({ ...post, status: post.status || "scheduled" }),
+  });
+}
+
+export async function updatePostStatus(id: string, updates: {
+  status?: string;
+  scheduledFor?: string;
+  text?: string;
+}): Promise<any> {
+  return apiFetch("/posts", {
+    method: "PATCH",
+    body: JSON.stringify({ id, ...updates }),
   });
 }
 
