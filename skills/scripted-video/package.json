@@ -1,0 +1,11 @@
+{
+  "name": "scripted-video",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fal-ai/client": "^1.2.1",
+    "@elevenlabs/elevenlabs-js": "^2.39.0",
+    "tsx": "^4.19.0"
+  }
+}
