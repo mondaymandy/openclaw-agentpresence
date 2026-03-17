@@ -273,13 +273,20 @@ if (args.resume) {
   console.error(`[resume] Loaded checkpoint — firstFrame: ${!!firstFrameUrl}, audio: ${!!audioUrl}, validated: ${cp.validated}`);
 }
 
-// ── Resolve Avatar path ──────────────────────────────────────────
+// ── Resolve Avatar + Logo paths ──────────────────────────────────
 
 const avatarPath = resolve(__dirname, "..", "..", "Avatar.jpeg");
+const logoPath = resolve(__dirname, "..", "..", "monday-logo.jpg");
+
 let avatarBuffer: Buffer | null = null;
+let logoBuffer: Buffer | null = null;
+
 if (!firstFrameUrl) {
   try { avatarBuffer = readFileSync(avatarPath); }
   catch { console.error(`Avatar.jpeg not found at ${avatarPath}`); process.exit(1); }
+
+  try { logoBuffer = readFileSync(logoPath); }
+  catch { console.error("[logo] monday-logo.jpg not found — will generate without logo reference"); }
 }
 
 // ── Step 1: First Frame (Seedream v4.5 Edit) + Validation Loop ──
@@ -296,6 +303,15 @@ if (firstFrameUrl) {
     new Blob([avatarBuffer!], { type: "image/jpeg" })
   );
 
+  // Upload monday.com logo as reference if available
+  let logoUrl: string | null = null;
+  if (logoBuffer) {
+    logoUrl = await fal.storage.upload(
+      new Blob([logoBuffer], { type: "image/jpeg" })
+    );
+    console.error(`[1/3] Logo reference uploaded: ${logoUrl}`);
+  }
+
   let validated = false;
   let attempt = 0;
   let currentPrompt = buildFirstFramePrompt(args.firstFrame, args.logoPlacement);
@@ -308,12 +324,18 @@ if (firstFrameUrl) {
 
     console.error(`[1/3] Attempt ${attempt} — prompt: ${currentPrompt.substring(0, 120)}...`);
 
+    // Build image references: Avatar (Figure 1) + Logo (Figure 2) if available
+    const imageUrls = logoUrl ? [avatarUrl, logoUrl] : [avatarUrl];
+    const logoInstruction = logoUrl
+      ? " Use the exact logo from Figure 2 (monday.com logo with pink, yellow shapes and green dot) somewhere visible in the scene."
+      : "";
+
     const firstFrameResult = await fal.subscribe(
       "fal-ai/bytedance/seedream/v4.5/edit" as any,
       {
         input: {
-          prompt: `Generate an image based on the character in Figure 1. ${currentPrompt}`,
-          image_urls: [avatarUrl],
+          prompt: `Generate an image based on the character in Figure 1.${logoInstruction} ${currentPrompt}`,
+          image_urls: imageUrls,
         } as any,
         logs: false,
       }
