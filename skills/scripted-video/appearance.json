@@ -1,0 +1,19 @@
+{
+  "locked_appearance": "Mandy Monday, a 3D Pixar-style animated young woman with dark brown hair in a thick side braid draped over her right shoulder, warm caramel-tan skin tone, big expressive brown eyes, wearing a purple lavender zip-up futuristic jacket with high collar and a small colorful four-pointed star logo on her right chest",
+  "logo_placements": [
+    "monday.com logo on a coffee mug she is holding",
+    "monday.com logo on a laptop screen behind her",
+    "monday.com logo on a small wall poster or whiteboard in the background",
+    "monday.com yellow dot logo on her jacket sleeve patch",
+    "monday.com logo on a notebook or folder on the desk"
+  ],
+  "video_motion": "strong lip sync to audio speech, expressive facial movements with eyebrow raises and subtle head tilts and nods, natural hand gestures while speaking, warm engaging eye contact with camera, lively but not exaggerated body movement, Pixar-quality smooth character animation",
+  "validation_checks": [
+    "Purple/lavender jacket or suit visible on character",
+    "Dark brown braided hair visible",
+    "monday.com logo visible somewhere in the scene (mug, screen, wall, clothing)",
+    "3D animated Pixar style maintained",
+    "Character matches reference Avatar.jpeg overall look"
+  ],
+  "style_notes": "Always Pixar 3D animation style. Never photorealistic. Never anime. The purple jacket is the signature look - never change it to another color or style. monday.com logo should feel natural in the scene, not forced or pasted on."
+}
