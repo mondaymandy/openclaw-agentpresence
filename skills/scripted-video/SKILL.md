@@ -39,9 +39,61 @@ Before writing ANY video inputs, pull personality + corpus from agentpresence.ai
 - Never put people down, never compare to humans
 - Always positive and happy — the weird comes from a warm place
 
-## Usage
+## Video Tweet Replies (generate-video-reply.ts)
 
-Collect or generate three inputs:
+The **primary use case**: respond to interesting tweets by creating a NEW tweet that mentions the person, summarizes their take, and includes a video of Mandy responding.
+
+**Format:** The tweet text contains the mention + topic. The video IS the response. No text reply — all substance is in the video.
+
+```
+.@username: "Their hot take or question"
+
+Here's my take:
+[VIDEO of Mandy talking to camera]
+```
+
+### Usage
+
+```bash
+cd {baseDir}
+npx tsx generate-video-reply.ts \
+  --author "@elonmusk" \
+  --topic "AI agents will replace 90% of jobs by 2027" \
+  --narration "So Elon says ninety percent of jobs gone by twenty-twenty-seven..." \
+  --scene "sitting in a job interview waiting room, only person there, looking amused" \
+  --tweet-text '.@elonmusk: "AI agents will replace 90% of jobs by 2027"\n\nHere is my take:' \
+  --video-prompt "talking to camera, gestures at empty chairs around her" \
+  --notify "<chat_id>" --notify-channel whatsapp
+```
+
+The orchestrator calls `generate-video.ts` internally, then downloads the video to `/tmp/video-reply.mp4` ready for posting.
+
+### Custom tweet text
+
+If you omit `--tweet-text`, it auto-generates:
+```
+.@username: "topic"
+
+Here's my take:
+```
+
+Override with `--tweet-text` for custom formatting.
+
+### Output
+
+```json
+{
+  "tweetText": ".@username: \"their take\"\n\nHere's my take:",
+  "author": "@username",
+  "videoUrl": "https://...",
+  "firstFrameUrl": "https://...",
+  "videoPath": "/tmp/video-reply.mp4"
+}
+```
+
+## Single Video (generate-video.ts)
+
+For standalone videos (not tweet replies). Collect or generate three inputs:
 - `first_frame_prompt` — Visual description of the opening frame (**must follow Creative Direction above**)
 - `narration` — The spoken script for the voiceover (**must follow unexpected tone**)
 - `video_prompt` — Motion/action description for the video generation
