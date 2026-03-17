@@ -45,6 +45,13 @@ export async function fetchPersonality(platform?: string): Promise<any[]> {
   return apiFetch(`/personality${params}`);
 }
 
+export async function writePersonality(section: string, content: string, platform?: string): Promise<any> {
+  return apiFetch("/personality", {
+    method: "PUT",
+    body: JSON.stringify({ section, content, platform: platform || "all" }),
+  });
+}
+
 export async function listPosts(platform?: string, limit = 50): Promise<any[]> {
   const params = new URLSearchParams();
   if (platform) params.set("platform", platform);
