@@ -59,6 +59,7 @@ const eleven = new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY });
 // ── State file to avoid replying to same tweets ──────────────────
 
 const statePath = resolve(__dirname, ".replied-tweets.json");
+const authorCooldownPath = resolve(__dirname, ".author-cooldowns.json");
 
 function loadRepliedTweets(): Set<string> {
   try {
@@ -73,6 +74,41 @@ function saveRepliedTweet(tweetId: string) {
   const existing = loadRepliedTweets();
   existing.add(tweetId);
   writeFileSync(statePath, JSON.stringify([...existing].slice(-500)));
+}
+
+// ── Author cooldown (per-author reply tracking) ──────────────────
+// Tracks when we last replied to each author's POSTS (not mentions).
+// Cooldown = 24h per author for proactive replies. Mentions bypass cooldown.
+
+interface AuthorCooldowns { [author: string]: number /* timestamp ms */ }
+
+function loadAuthorCooldowns(): AuthorCooldowns {
+  try {
+    if (existsSync(authorCooldownPath)) {
+      const data: AuthorCooldowns = JSON.parse(readFileSync(authorCooldownPath, "utf-8"));
+      // Prune entries older than 7 days
+      const cutoff = Date.now() - 7 * 24 * 3600000;
+      for (const k of Object.keys(data)) {
+        if (data[k] < cutoff) delete data[k];
+      }
+      return data;
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveAuthorCooldown(author: string) {
+  const cooldowns = loadAuthorCooldowns();
+  cooldowns[author] = Date.now();
+  writeFileSync(authorCooldownPath, JSON.stringify(cooldowns, null, 2));
+}
+
+function isAuthorOnCooldown(author: string): boolean {
+  const cooldowns = loadAuthorCooldowns();
+  const lastReply = cooldowns[author];
+  if (!lastReply) return false;
+  const hoursSince = (Date.now() - lastReply) / 3600000;
+  return hoursSince < 24; // 24h cooldown
 }
 
 // ── Logging ──────────────────────────────────────────────────────
@@ -264,17 +300,26 @@ async function fetchRecentTweets(client: any): Promise<Tweet[]> {
   }
   await new Promise(r => setTimeout(r, 1000));
 
-  // ── 2. Fetch tweets from accounts we follow (existing behavior) ──
+  // ── 2. Fetch tweets from target accounts (expanded pool, rotated) ──
+  // All tiers from engagement-rules-v1 — wider net, cooldown handles diversity
   const accountBatches = [
-    ["emollick", "svpino", "rowancheung"],
-    ["hwchase17", "mattshumer_", "AndrewYNg"],
+    // Tier 1: AI Thought Leaders
+    ["emollick", "svpino", "karpathy", "alliekmiller", "AndrewYNg"],
+    // Tier 2: AI Builders & Practitioners
+    ["hwchase17", "mattshumer_", "jeremyphoward", "OfficialLoganK", "rasbt", "_philschmid"],
+    // Tier 3: Tech Commentators & Business
+    ["gregisenberg", "rowancheung", "garymarcus", "lexfridman"],
+    // Tier 4: Frameworks + Company accounts
+    ["CrewAIInc", "LangChainAI"],
+    // Original high-value
     ["sama", "ylecun", "DarioAmodei"],
-    ["gregisenberg", "alliekmiller", "CrewAIInc"],
   ];
 
   const queries: string[] = accountBatches.map(b => b.map(a => `from:${a}`).join(" OR "));
+  // Discovery queries — find NEW voices, not just the known names
   queries.push('"AI agent" -is:retweet -is:reply');
   queries.push('"agentic AI" -is:retweet -is:reply');
+  queries.push('"AI workflow" OR "AI automation" -is:retweet -is:reply');
 
   for (const query of queries) {
     try {
@@ -337,11 +382,32 @@ function scoreTweet(tweet: Tweet, repliedSet: Set<string>): number {
   if (lower.includes("workflow") || lower.includes("automation")) score += 10;
   if (lower.includes("hiring") || lower.includes("workforce")) score += 10;
 
-  const highValue = ["emollick", "sama", "AndrewYNg", "ylecun", "DarioAmodei", "hwchase17"];
-  if (highValue.includes(tweet.author)) score += 20;
+  // Tiered author scoring — spread across tiers, not just the same 5 names
+  const tier1 = ["emollick", "sama", "AndrewYNg", "ylecun", "DarioAmodei", "karpathy", "alliekmiller"];
+  const tier2 = ["hwchase17", "mattshumer_", "jeremyphoward", "OfficialLoganK", "rasbt", "_philschmid"];
+  const tier3 = ["gregisenberg", "rowancheung", "garymarcus", "lexfridman", "drfeifei", "demishassabis"];
+  const tier4 = ["CrewAIInc", "LangChainAI", "AnthropicAI", "OpenAI"];
+  const tier5 = ["mondaydotcom", "NovaLystrix"];
 
-  // PRIORITY: someone @mentioned us — they're talking to us, always reply
-  if (tweet.isMention) score += 100;
+  if (tier1.includes(tweet.author)) score += 20;
+  else if (tier2.includes(tweet.author)) score += 18;
+  else if (tier3.includes(tweet.author)) score += 15;
+  else if (tier4.includes(tweet.author)) score += 12;
+  else if (tier5.includes(tweet.author)) score += 10;
+  // Unknown authors with decent engagement still get a fair shot via metrics scoring above
+
+  // PRIORITY: someone @mentioned us — they're talking to us, always reply (NO cooldown)
+  if (tweet.isMention) {
+    score += 100;
+    return score; // skip cooldown check for mentions
+  }
+
+  // Per-author cooldown: if we replied to this person's posts in last 24h, heavy penalty
+  // This prevents camping on the same 5 accounts
+  if (isAuthorOnCooldown(tweet.author)) {
+    log(`Author @${tweet.author} on 24h cooldown (not a mention) — penalizing`);
+    score -= 80; // heavy penalty but not -1, in case nothing else qualifies
+  }
 
   return score;
 }
@@ -789,14 +855,20 @@ async function main() {
       // Post via browser UI (bypasses API reply restrictions)
       const post = await postVideoTweet(video.videoPath, script.tweetText, tweet.id, tweet.author);
       saveRepliedTweet(tweet.id);
+      // Save author cooldown for proactive replies (not mentions)
+      if (!tweet.isMention) {
+        saveAuthorCooldown(tweet.author);
+        log(`[cooldown] Set 24h cooldown for @${tweet.author} (proactive reply)`);
+      }
 
       results.push({
         tweetId: tweet.id, author: tweet.author, score,
         replyTweetId: post.tweetId, replyUrl: post.tweetUrl,
         narration: script.narration, status: "posted",
+        isMention: tweet.isMention || false,
       });
       repliesPosted++;
-      log(`SUCCESS: Video reply posted to @${tweet.author}`);
+      log(`SUCCESS: Video reply posted to @${tweet.author}${tweet.isMention ? " (mention — no cooldown)" : ""}`);
 
       // Wait between replies
       if (repliesPosted < MAX_REPLIES) {
