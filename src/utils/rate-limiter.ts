@@ -13,6 +13,7 @@ const buckets = new Map<string, BucketState>();
 const LIMITS: Record<string, { maxPerHour: number }> = {
   linkedin: { maxPerHour: 30 },
   twitter: { maxPerHour: 120 },
+  reddit: { maxPerHour: 30 },
 };
 
 export function canAct(platform: string): boolean {

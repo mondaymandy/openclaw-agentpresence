@@ -62,7 +62,7 @@ export default function register(api: any): void {
     parameters: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "all"], description: "Filter by platform (default: all)" },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit", "all"], description: "Filter by platform (default: all)" },
       },
       required: [],
     },
@@ -86,7 +86,7 @@ export default function register(api: any): void {
     parameters: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube"], description: "Platform posted to" },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"], description: "Platform posted to" },
         type: { type: "string", enum: ["post", "thread", "reply", "quote"], description: "Post type" },
         content: { type: "string", description: "Full post content" },
         url: { type: "string", description: "URL of the published post" },
@@ -156,7 +156,7 @@ export default function register(api: any): void {
     parameters: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube"] },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"] },
         target_handle: { type: "string", description: "Handle of person engaged with" },
         content: { type: "string", description: "Your reply/comment content" },
         url: { type: "string", description: "URL of your reply or original post" },
@@ -226,7 +226,7 @@ export default function register(api: any): void {
     parameters: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube"] },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"] },
         limit: { type: "number", description: "Max results (default 20)" },
       },
       required: [],
@@ -312,7 +312,7 @@ export default function register(api: any): void {
       type: "object",
       properties: {
         name: { type: "string" }, handle: { type: "string" },
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube"] },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"] },
         monday_item_id: { type: "string" },
         phase: { type: "number", enum: [1, 2, 3, 4] },
         priority: { type: "string", enum: ["high", "medium", "low"] },
@@ -355,7 +355,7 @@ export default function register(api: any): void {
     description: "Check action count this hour (LinkedIn: 30/hr, Twitter: 120/hr).",
     parameters: {
       type: "object",
-      properties: { platform: { type: "string", enum: ["twitter", "linkedin", "youtube"] } },
+      properties: { platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"] } },
       required: ["platform"],
     },
     execute(_id: string, params: { platform: string }) {
@@ -422,7 +422,7 @@ export default function register(api: any): void {
     parameters: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube"], description: "Target platform" },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"], description: "Target platform" },
         type: { type: "string", enum: ["post", "thread", "reply", "quote"], description: "Post type" },
         content: { type: "string", description: "Full post content" },
         scheduledFor: { type: "string", description: "ISO timestamp for when to publish (optional for drafts)" },
@@ -493,7 +493,7 @@ export default function register(api: any): void {
     parameters: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["twitter", "linkedin", "youtube"], description: "Filter by platform" },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "reddit"], description: "Filter by platform" },
         markPublished: { type: "string", description: "Post ID to mark as published (after posting)" },
         url: { type: "string", description: "Published post URL (when marking published)" },
         approveDraft: { type: "string", description: "Draft post ID to approve and schedule" },
@@ -734,6 +734,7 @@ export default function register(api: any): void {
     const lower = name.toLowerCase();
     if (lower.includes("twitter") || lower.includes(" x ") || lower.includes("tweet")) return "twitter";
     if (lower.includes("linkedin")) return "linkedin";
+    if (lower.includes("reddit")) return "reddit";
     return undefined;
   }
 

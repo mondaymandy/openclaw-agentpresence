@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "../../");
 
 export interface PublishPayload {
-  platform: "twitter" | "linkedin";
+  platform: "twitter" | "linkedin" | "reddit";
   type: "post" | "thread" | "reply" | "quote";
   content: string;
   url?: string;
