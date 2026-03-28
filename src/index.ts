@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { TwitterWatcher } from "./watcher/twitter-watcher.js";
 import { getDb, upsertInfluencer, getEnabledWatches } from "./data/db.js";
-import { initApiClient, getApiConfig, fetchPersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, writeCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, updatePostStatus, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
+import { initApiClient, getApiConfig, fetchPersonality, writePersonality, logPost as apiLogPost, logEngagement as apiLogEngagement, listPosts, listEngagements, fetchCorpus, writeCorpus, fetchStrategy, fetchFeedback, queuePost, getNextScheduledPost, markPostPublished, updatePostStatus, writeJournalEntry, listJournalEntries, getJournalContext, chatPostMessage, chatRegisterWebhook, fetchGuardrails, checkGuardrails, logAuditEvent } from "./data/api-client.js";
 import { MondayBoardClient } from "./services/monday-board.js";
 import { canAct, recordAction, getActionCount } from "./utils/rate-limiter.js";
 
@@ -76,6 +76,29 @@ export default function register(api: any): void {
         return `## ${header}\n${s.content}`;
       }).join("\n\n---\n\n");
       return { content: [{ type: "text", text: text || "No personality sections found." }] };
+    },
+  });
+
+  // ── Tool: Write/update a personality section ──────────────────────────
+  api.registerTool({
+    name: "social_write_personality",
+    description: "Write or update a personality section (voice, tone, values, guardrails) on the Social Activity web app. Use this to persist personality rules, guardrails, and voice guidelines. Section acts as a unique key (upserts if exists).",
+    parameters: {
+      type: "object",
+      properties: {
+        section: { type: "string", description: "Section name: voice, tone, values, or guardrails" },
+        content: { type: "string", description: "Full content of the personality section (markdown supported)" },
+        platform: { type: "string", enum: ["twitter", "linkedin", "youtube", "all"], description: "Platform scope (default: all)" },
+      },
+      required: ["section", "content"],
+    },
+    async execute(_id: string, params: { section: string; content: string; platform?: string }) {
+      if (!getApiConfig()) {
+        return { content: [{ type: "text", text: "API not configured. Set SOCIAL_APP_URL, SOCIAL_APP_KEY, SOCIAL_ACCOUNT_ID." }] };
+      }
+      const result = await writePersonality(params.section, params.content, params.platform);
+      logAuditEvent({ category: 'system', eventType: 'personality_updated', title: `Personality section "${params.section}" updated`, description: params.content.slice(0, 200), severity: 'info' });
+      return { content: [{ type: "text", text: `✅ Personality section "${params.section}" updated successfully.` }] };
     },
   });
 
